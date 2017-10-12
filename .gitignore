@@ -243,3 +243,4 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+/Manice.Web.Core/Properties/PublishProfiles/FolderProfile.pubxml
