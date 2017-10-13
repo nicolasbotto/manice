@@ -6,9 +6,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Manice.Web.Core.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Manice.Web.Core.Controllers
 {
+    [Authorize]
+    [Route("[controller]/[action]")]
     public class BeersController : Controller
     {
         private readonly ManiceContext _context;
@@ -19,12 +22,14 @@ namespace Manice.Web.Core.Controllers
         }
 
         // GET: Beers
+        [AllowAnonymous]
         public async Task<IActionResult> Index()
         {
             return View(await _context.Beer.ToListAsync());
         }
 
         // GET: Beers/Details/5
+        [AllowAnonymous]
         public async Task<IActionResult> Details(int? id)
         {
             if (id == null)
