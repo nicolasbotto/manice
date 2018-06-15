@@ -1,0 +1,173 @@
+﻿
+
+	<input type="button" value="Click" onclick="login()" />
+	<input type="button" value="Graph" onclick="call()" />
+	
+	<script src="https://secure.aadcdn.microsoftonline-p.com/lib/0.1.5/js/msal.min.js"></script>
+	<script class="pre">
+		var client = null;
+		const graphTokenStoreKey = 'AD.GraphToken';
+		const webApiTokenStoreKey = 'AD.WebApiToken';
+		const userStoreKey = 'AD.User';
+
+		// Enter Global Config Values & Instantiate MSAL Client application
+		window.config = {
+			clientID: 'aff7757b-d5e5-4c60-8bb5-a8773d387c0b',
+			webApiScope: ['aff7757b-d5e5-4c60-8bb5-a8773d387c0b'],
+			graphScopes: ["user.read", "user.readbasic.all", "mail.send"]
+		};
+
+		var authToken = null;
+
+		var logger = new Msal.Logger(loggerCallback, { level: Msal.LogLevel.Verbose, correlationId: '12345' }); // level and correlationId are optional parameters.
+		//Logger has other optional parameters like piiLoggingEnabled which can be assigned as shown aabove. Please refer to the docs to see the full list and their default values.
+
+		function loggerCallback(logLevel, message, piiLoggingEnabled)
+		{
+			console.log(message);
+		}
+
+		var userAgentApplication = new Msal.UserAgentApplication(window.config.clientID, null, tokenReceivedCallback, { logger: logger, cacheLocation: 'localStorage' }); //logger and cacheLocation are optional parameters.
+		//userAgentApplication has other optional parameters like redirectUri which can be assigned as shown above.Please refer to the docs to see the full list and their default values.
+		function tokenReceivedCallback(errorMessage, token, error, tokenType)
+		{
+			//This function is called after loginRedirect and acquireTokenRedirect. Use tokenType to determine context.
+			//For loginRedirect, tokenType = "id_token". For acquireTokenRedirect, tokenType:"access_token".
+
+			if (!errorMessage && token)
+			{
+				this.acquireTokenSilent(graphScopes).then(accessToken =>
+				{
+					// Store token in localStore
+					localStorage.setItem(graphTokenStoreKey, accessToken);
+					localStorage.setItem(webApiTokenStoreKey, token);
+				}, function (error)
+				{
+					handleError(error);
+					this.acquireTokenPopup(graphScopes).then(accessToken =>
+					{
+						// Store token in localStore
+						localStorage.setItem(graphTokenStoreKey, accessToken);
+						localStorage.setItem(webApiTokenStoreKey, token);
+					}, function (error)
+					{
+						handleError(error);
+					});
+				});
+			} else
+			{
+				handleError(error);
+			}
+		}
+
+		function getWebApiToken()
+		{
+			return localStorage.getItem(webApiTokenStoreKey);
+		}
+
+		function getUser()
+		{
+			return localStorage.getItem(userStoreKey);
+		}
+
+		function login()
+		{
+			//var user = getUser();
+
+			//if (user)
+			//{
+			//	return;
+			//}
+
+			userAgentApplication.loginPopup(window.config.graphScopes).then(function (idToken)
+			{
+				//Login Success
+				userAgentApplication.acquireTokenSilent(window.config.webApiScope).then(
+					function (accessToken)
+					{
+						var user = userAgentApplication.getUser();
+						localStorage.setItem(userStoreKey, user);
+						localStorage.setItem(webApiTokenStoreKey, accessToken);
+					}, function (error)
+					{
+						handleError(error);
+					}, function (error)
+					{
+						handleError(error);
+					})
+			});
+		}
+
+		function call()
+		{
+			var endpoint = window.location.origin + "/api/company/list";
+
+			var result = callApi(endpoint, null);
+
+			result.then(data => alert(data.length))
+				.catch(err => handleError(err));
+		}
+
+
+		function callApi(endpoint, args)
+		{
+			//if (client)
+			//{
+			//	client
+			//		.api('/me')
+			//		.get((err, res) =>
+			//		{
+			//			console.log(res); // prints info about authenticated user
+			//		});
+
+			//}
+
+			return new Promise((resolve, reject) =>
+			{
+				var headers = new Headers();
+				var bearer = "Bearer " + this.getWebApiToken();
+
+				headers.append("Authorization", bearer);
+				var options = {
+					method: 'GET',
+					headers: headers
+				};
+
+				fetch(endpoint, options)
+					.then(function (response)
+					{
+						var contentType = response.headers.get("content-type");
+						if (response.status === 200 && contentType && contentType.indexOf("application/json") !== -1)
+						{
+							response.json()
+								.then(function (data)
+								{
+									return resolve(data);
+								})
+								.catch(function (error)
+								{
+									return reject(error + ' when calling endpoint: ' + endpoint);
+								});
+						}// failed
+						else
+						{
+
+
+						}
+					})
+					.catch(function (error)
+					{
+						return reject(error);
+					});
+			});
+
+
+
+		}
+
+		function handleError(error)
+		{
+			console.error(`error calling api ${error}`);
+
+		}
+	</script>
